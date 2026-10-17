@@ -111,20 +111,27 @@ describe('POST /api/logistics', () => {
 
   it('responde 201 con un enlace de WhatsApp al equipo, sin el teléfono del solicitante', async () => {
     const res = await POST(
-      postRequest(JSON.stringify({ ...VALID_BODY, isVerified: 'verificado', is_verified: true })),
+      postRequest(
+        JSON.stringify({
+          ...VALID_BODY,
+          status: 'verificado',
+          isVerified: 'verificado',
+          is_verified: true,
+        }),
+      ),
     );
 
     expect(res.status).toBe(201);
     expect(res.headers.get('Cache-Control')).toBe('no-store');
     const body = (await res.json()) as Record<string, string>;
-    expect(Object.keys(body).sort()).toEqual(['createdAt', 'id', 'isVerified', 'whatsAppLink']);
-    expect(body.isVerified).toBe('pendiente');
+    expect(Object.keys(body).sort()).toEqual(['createdAt', 'id', 'status', 'whatsAppLink']);
+    expect(body.status).toBe('pendiente');
     expect(body.whatsAppLink.startsWith(`https://wa.me/${TEAM_PHONE}?text=`)).toBe(true);
     expect(decodeURIComponent(body.whatsAppLink)).not.toContain(REQUESTER_PHONE);
     expect(JSON.stringify(body)).not.toContain(REQUESTER_PHONE);
 
     expect(mocks.save).toHaveBeenCalledTimes(1);
-    expect(mocks.save.mock.calls[0][0].isVerified).toBe('pendiente');
+    expect(mocks.save.mock.calls[0][0].status).toBe('pendiente');
   });
 
   it('responde 500 con mensaje genérico si falla el repositorio', async () => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { z } from 'zod';
+import { supplyCategorySchema } from '@/application/schemas/logistics-request.schema';
 import type {
   HotspotFeatureCollection,
   LogisticsFeatureCollection,
@@ -36,7 +37,7 @@ const LOGISTICS_FEATURE_SCHEMA = z.object({
     region: z.string(),
     district: z.string(),
     urgency: z.enum(['critico', 'moderado', 'cubierto']),
-    categories: z.array(z.string()),
+    categories: z.array(supplyCategorySchema),
     whatsAppLink: z.string(),
   }),
 });
@@ -86,7 +87,7 @@ function buildHotspotsUrl(minFrp: number): string {
   const params = new URLSearchParams();
   if (minFrp > 0) params.set('min_frp', String(minFrp));
   const qs = params.toString();
-  return qs ? `/api/cron/firms-sync?${qs}` : '/api/cron/firms-sync';
+  return qs ? `/api/hotspots?${qs}` : '/api/hotspots';
 }
 
 function buildLogisticsUrl(

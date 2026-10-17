@@ -12,7 +12,7 @@ import { NO_STORE, badRequest, serverError } from './_lib/responses';
 
 export const dynamic = 'force-dynamic';
 
-const CACHE_CONTROL = 's-maxage=3600, stale-while-revalidate';
+const CACHE_CONTROL = 's-maxage=300, stale-while-revalidate=60';
 const SUBMIT_LIMIT = 5;
 const SUBMIT_WINDOW_SECONDS = 60 * 60;
 
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         id: created.id,
-        isVerified: created.isVerified,
+        status: created.status,
         whatsAppLink: created.toWhatsAppDeepLink(teamPhone),
         createdAt: created.createdAt,
       },

@@ -4,7 +4,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { useMapData } from './useMapData';
 import type { MapFilters } from './useMapFilters';
 
-const HOTSPOTS_PATH = '/api/cron/firms-sync';
+const HOTSPOTS_PATH = '/api/hotspots';
 const LOGISTICS_PATH = '/api/logistics/geojson';
 
 const HOTSPOTS_BODY = {

@@ -1,12 +1,16 @@
 import type { Hotspot } from '../entities/hotspot.entity';
 
-export interface HotspotQueryFilters {
+/** [oeste, sur, este, norte] en grados WGS84. */
+export type BBox = [west: number, south: number, east: number, north: number];
+
+export interface ActiveHotspotFilters {
+  /** Instante ISO 8601: solo focos adquiridos desde entonces. */
+  since: string;
+  bbox?: BBox;
   minFrp?: number;
-  sources?: Array<'VIIRS_NOAA20_NRT' | 'VIIRS_NOAA21_NRT'>;
-  dateFrom?: string;
-  dateTo?: string;
 }
 
 export interface IHotspotRepository {
-  getActive(filters?: HotspotQueryFilters): Promise<Hotspot[]>;
+  upsert(hotspots: Hotspot[]): Promise<number>;
+  findActive(filters: ActiveHotspotFilters): Promise<Hotspot[]>;
 }

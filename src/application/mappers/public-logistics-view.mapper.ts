@@ -1,15 +1,5 @@
 import type { LogisticsRequest } from '@/domain/entities/logistics-request.entity';
-import type { SupplyCategory, UrgencyLevel } from '@/domain/types';
-
-export interface PublicLogisticsView {
-  id: string;
-  region: string;
-  district: string;
-  urgency: UrgencyLevel;
-  categories: SupplyCategory[];
-  whatsAppLink: string;
-  createdAt: string;
-}
+import type { PublicLogisticsView } from '@/application/dto/logistics-geojson';
 
 export function toPublicLogisticsView(
   request: LogisticsRequest,

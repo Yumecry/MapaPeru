@@ -13,9 +13,22 @@ export interface LogisticsRequestPrimitives {
   categories: SupplyCategory[];
   urgency: UrgencyLevel;
   description: string;
-  isVerified: VerifyStatus;
+  status: VerifyStatus;
+  verifiedBy?: string;
+  verifiedAt?: string;
+  rejectionReason?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export class InvalidStatusTransitionError extends Error {
+  constructor(
+    readonly from: VerifyStatus,
+    readonly to: VerifyStatus,
+  ) {
+    super(`Transición de estado no permitida: ${from} → ${to}`);
+    this.name = 'InvalidStatusTransitionError';
+  }
 }
 
 export class LogisticsRequest {
@@ -26,7 +39,10 @@ export class LogisticsRequest {
   readonly categories: readonly SupplyCategory[];
   readonly urgency: UrgencyLevel;
   readonly description: string;
-  readonly isVerified: VerifyStatus;
+  readonly status: VerifyStatus;
+  readonly verifiedBy?: string;
+  readonly verifiedAt?: string;
+  readonly rejectionReason?: string;
   readonly createdAt: string;
   readonly updatedAt: string;
 
@@ -38,7 +54,10 @@ export class LogisticsRequest {
     this.categories = Object.freeze([...primitives.categories]);
     this.urgency = primitives.urgency;
     this.description = primitives.description;
-    this.isVerified = primitives.isVerified;
+    this.status = primitives.status;
+    this.verifiedBy = primitives.verifiedBy;
+    this.verifiedAt = primitives.verifiedAt;
+    this.rejectionReason = primitives.rejectionReason;
     this.createdAt = primitives.createdAt;
     this.updatedAt = primitives.updatedAt;
   }
@@ -48,16 +67,73 @@ export class LogisticsRequest {
   }
 
   static create(
-    data: Omit<LogisticsRequestPrimitives, 'id' | 'isVerified' | 'createdAt' | 'updatedAt'>,
+    data: Omit<
+      LogisticsRequestPrimitives,
+      'id' | 'status' | 'verifiedBy' | 'verifiedAt' | 'rejectionReason' | 'createdAt' | 'updatedAt'
+    >,
   ): LogisticsRequest {
     const now = new Date().toISOString();
     return new LogisticsRequest({
       ...data,
       id: crypto.randomUUID(),
-      isVerified: 'pendiente',
+      status: 'pendiente',
       createdAt: now,
       updatedAt: now,
     });
+  }
+
+  toPrimitives(): LogisticsRequestPrimitives {
+    return {
+      id: this.id,
+      contact: { ...this.contact },
+      latitude: this.latitude,
+      longitude: this.longitude,
+      categories: [...this.categories],
+      urgency: this.urgency,
+      description: this.description,
+      status: this.status,
+      verifiedBy: this.verifiedBy,
+      verifiedAt: this.verifiedAt,
+      rejectionReason: this.rejectionReason,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
+  }
+
+  verify(verifierId: string, now: Date): LogisticsRequest {
+    this.assertPending('verificado');
+    const at = now.toISOString();
+    return new LogisticsRequest({
+      ...this.toPrimitives(),
+      status: 'verificado',
+      verifiedBy: requireVerifierId(verifierId),
+      verifiedAt: at,
+      rejectionReason: undefined,
+      updatedAt: at,
+    });
+  }
+
+  reject(verifierId: string, reason: string, now: Date): LogisticsRequest {
+    this.assertPending('rechazado');
+    const trimmed = reason.trim();
+    if (trimmed.length === 0) {
+      throw new Error('El motivo del rechazo es obligatorio');
+    }
+    const at = now.toISOString();
+    return new LogisticsRequest({
+      ...this.toPrimitives(),
+      status: 'rechazado',
+      verifiedBy: requireVerifierId(verifierId),
+      verifiedAt: at,
+      rejectionReason: trimmed,
+      updatedAt: at,
+    });
+  }
+
+  private assertPending(to: VerifyStatus): void {
+    if (this.status !== 'pendiente') {
+      throw new InvalidStatusTransitionError(this.status, to);
+    }
   }
 
   toWhatsAppDeepLink(teamPhone: string): string {
@@ -70,4 +146,11 @@ export class LogisticsRequest {
     );
     return `https://wa.me/${digits}?text=${message}`;
   }
+}
+
+function requireVerifierId(verifierId: string): string {
+  if (verifierId.trim().length === 0) {
+    throw new Error('Identificador de verificador inválido');
+  }
+  return verifierId;
 }

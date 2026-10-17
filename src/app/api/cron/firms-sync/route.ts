@@ -1,67 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { NasaFirmsAdapter } from '@/infrastructure/adapters/nasa-firms.adapter';
-import { GetActiveHotspotsUseCase } from '@/application/use-cases/get-active-hotspots.use-case';
-import { hotspotToGeoJSON } from '@/application/mappers/hotspot-geojson.mapper';
-import type { HotspotQueryFilters } from '@/domain/repositories/hotspot.repository';
+import { PostgisHotspotRepository } from '@/infrastructure/database/postgis-hotspot.repository';
+import { SyncHotspotsUseCase } from '@/application/use-cases/sync-hotspots.use-case';
+import { checkCronAuth } from '../../_lib/cron-auth';
+import { NO_STORE, serverError } from '../../logistics/_lib/responses';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
-const CACHE_CONTROL = 's-maxage=3600, stale-while-revalidate';
-
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+// FIRMS NRT llega con ~3 h de latencia: 2 días evita perder focos tardíos del día UTC anterior.
+const SYNC_DAY_RANGE = 2;
 
 export async function GET(request: NextRequest) {
+  const auth = checkCronAuth(request.headers.get('authorization'));
+  if (auth === 'misconfigured') {
+    return serverError('GET /api/cron/firms-sync', new Error('CRON_SECRET no configurado'));
+  }
+  if (auth === 'unauthorized') {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401, headers: NO_STORE });
+  }
+
   try {
-    const { searchParams } = request.nextUrl;
-    const minFrpParam = searchParams.get('min_frp');
-    const dateFromParam = searchParams.get('date_from');
-    const dateToParam = searchParams.get('date_to');
-
-    const filters: HotspotQueryFilters = {};
-
-    if (minFrpParam !== null) {
-      const minFrp = Number(minFrpParam);
-      if (!Number.isFinite(minFrp) || minFrp < 0) {
-        return NextResponse.json(
-          { error: 'min_frp debe ser un número no negativo' },
-          { status: 400, headers: { 'Cache-Control': 'no-store' } },
-        );
-      }
-      filters.minFrp = minFrp;
-    }
-
-    if (dateFromParam !== null) {
-      if (!DATE_PATTERN.test(dateFromParam)) {
-        return NextResponse.json(
-          { error: 'date_from debe tener formato YYYY-MM-DD' },
-          { status: 400, headers: { 'Cache-Control': 'no-store' } },
-        );
-      }
-      filters.dateFrom = `${dateFromParam}T00:00:00Z`;
-    }
-
-    if (dateToParam !== null) {
-      if (!DATE_PATTERN.test(dateToParam)) {
-        return NextResponse.json(
-          { error: 'date_to debe tener formato YYYY-MM-DD' },
-          { status: 400, headers: { 'Cache-Control': 'no-store' } },
-        );
-      }
-      filters.dateTo = `${dateToParam}T23:59:59Z`;
-    }
-
-    const adapter = new NasaFirmsAdapter();
-    const useCase = new GetActiveHotspotsUseCase(adapter);
-    const hotspots = await useCase.execute(filters);
-
-    return NextResponse.json(hotspotToGeoJSON(hotspots), {
-      headers: { 'Cache-Control': CACHE_CONTROL },
-    });
-  } catch (error) {
-    console.error('GET /api/cron/firms-sync', error);
-    return NextResponse.json(
-      { error: 'No se pudieron obtener los focos de calor. Inténtelo de nuevo más tarde.' },
-      { status: 502, headers: { 'Cache-Control': 'no-store' } },
+    const useCase = new SyncHotspotsUseCase(
+      new NasaFirmsAdapter({ dayRange: SYNC_DAY_RANGE }),
+      new PostgisHotspotRepository(),
     );
+    const result = await useCase.execute();
+    return NextResponse.json(result, { headers: NO_STORE });
+  } catch (error) {
+    return serverError('GET /api/cron/firms-sync', error);
   }
 }

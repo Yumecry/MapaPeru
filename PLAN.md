@@ -225,13 +225,24 @@ Fase 5                      --> en paralelo
 | **B · seguridad-backend** | 1, 2 | `supabase/migrations/002*`, `003*`, `infrastructure/database/*`, `infrastructure/config/*`, `domain/entities/logistics-request.entity.ts`, `application/mappers/logistics-*`, `application/mappers/public-*`, `app/api/logistics/**`, `.env.example` |
 | **C · calidad** | 6 parcial | `package.json` (scripts/devDeps), `eslint.config.mjs`, `vitest.config.ts`, `next.config.ts`, `README.md`, `**/*.test.ts`. Corre **después** de A y B |
 
-Fases 3, 4 y 5 → Tanda 2, tras resolver las decisiones pendientes.
+### Tanda 2 (completada 2026-10-16)
+
+| Agente | Fases | Resultado |
+|---|---|---|
+| **D · focos** | 3 | Tabla `hotspots` (004) + RPC `hotspots_in_bbox` / `prune_hotspots`; `IHotspotProvider` (FIRMS) separado de `IHotspotRepository` (Postgres); `GET /api/cron/firms-sync` con Bearer `CRON_SECRET` (comparación en tiempo constante); `GET /api/hotspots` público desde Postgres (48 h por defecto); pg_cron horario + retención 30 días vía Vault (006) |
+| **E · verificación** | 4 | `status` de 3 estados + `verified_by/at`, `rejection_reason`, trigger `updated_at`, tabla `verifiers` (005); `@supabase/ssr` + `src/proxy.ts`; `/login` (rate limit 10/15 min), `/verify`, `PATCH /api/verify/[id]` (Origin, 401/403/404/409) |
+| **F · ubicación** | 5.2 | Pin manual en mini-mapa si falla el GPS; coordenadas restringidas al bbox de Perú en el schema |
+| **Cierre** | 5.1, 5.3 | DTOs GeoJSON en `application/dto/`; `geom` generada + GiST en `logistics_requests` (007); caché de logística a `s-maxage=300`; README de despliegue |
+
+**Orden de migraciones:** 001 → 002 → 003 → 004 → 005 → 006 → 007. La 005 elimina `is_verified`: desplegar código y migración a la vez. Antes de la 006, crear en Vault `firms_sync_url` y `cron_secret`.
+
+**Pendiente (Tanda 3):** 5.4 (`IMapLayer`, contrato `sanitized-upload`), CSP, caché offline de tiles respetando la política de OSM, panel de administración de verificadores (hoy por SQL), avisos de `npm audit` en devDeps de ESLint.
 
 ---
 
 ## Decisiones pendientes
 
-1. **Hosting** — recomendación: Vercel + `pg_cron` en Supabase para el sync (cada 1–3 h sin plan Pro). Si es Vercel Pro, cron en `vercel.json` por GET.
+1. ~~Hosting~~ → resuelto: Vercel Hobby + `pg_cron`/`pg_net` en Supabase (sync horario).
 2. **Número de WhatsApp del equipo de respuesta** — necesario para `RESPONSE_TEAM_WHATSAPP`.
 3. ~~Geometría en `logistics_requests`~~ → resuelto: columna generada (5.3).
 4. ~~Fallback de GPS~~ → resuelto: incluido (5.2).

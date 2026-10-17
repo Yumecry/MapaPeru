@@ -8,7 +8,7 @@ import { badRequest, serverError } from '../_lib/responses';
 
 export const dynamic = 'force-dynamic';
 
-const CACHE_CONTROL = 's-maxage=3600, stale-while-revalidate';
+const CACHE_CONTROL = 's-maxage=300, stale-while-revalidate=60';
 
 export async function GET(request: NextRequest) {
   const parsed = parseVerifiedFilters(request.nextUrl.searchParams);

@@ -27,16 +27,30 @@ class FakeLogisticsRepository implements ILogisticsRepository {
   async getVerified(): Promise<LogisticsRequest[]> {
     return [];
   }
+
+  async findPending(): Promise<LogisticsRequest[]> {
+    return [];
+  }
+
+  async findById(): Promise<LogisticsRequest | null> {
+    return null;
+  }
+
+  async saveDecision(request: LogisticsRequest): Promise<LogisticsRequest> {
+    return request;
+  }
 }
 
 describe('SubmitLogisticsRequestUseCase', () => {
-  it("guarda la solicitud con isVerified 'pendiente'", async () => {
+  it("guarda la solicitud con status 'pendiente'", async () => {
     const repo = new FakeLogisticsRepository();
     const result = await new SubmitLogisticsRequestUseCase(repo).execute(VALID_INPUT);
 
     expect(repo.saved).toHaveLength(1);
     expect(repo.saved[0]).toBe(result);
-    expect(result.isVerified).toBe('pendiente');
+    expect(result.status).toBe('pendiente');
+    expect(result.verifiedBy).toBeUndefined();
+    expect(result.verifiedAt).toBeUndefined();
     expect(result.contact).toEqual({
       fullName: 'Rosa Huamán',
       phone: '+51 987654321',
@@ -47,6 +61,7 @@ describe('SubmitLogisticsRequestUseCase', () => {
   });
 
   it.each([
+    ['status', { status: 'verificado', verifiedBy: 'atacante' }],
     ['isVerified', { isVerified: 'verificado' }],
     ['is_verified', { is_verified: true }],
     ['ambos', { isVerified: 'verificado', is_verified: true, id: 'forzado' }],
@@ -54,7 +69,8 @@ describe('SubmitLogisticsRequestUseCase', () => {
     const repo = new FakeLogisticsRepository();
     await new SubmitLogisticsRequestUseCase(repo).execute({ ...VALID_INPUT, ...extra });
 
-    expect(repo.saved[0].isVerified).toBe('pendiente');
+    expect(repo.saved[0].status).toBe('pendiente');
+    expect(repo.saved[0].verifiedBy).toBeUndefined();
     expect(repo.saved[0].id).not.toBe('forzado');
   });
 

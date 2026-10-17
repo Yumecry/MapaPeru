@@ -22,7 +22,9 @@ function buildRequest(): LogisticsRequest {
     categories: ['agua', 'veterinaria'],
     urgency: 'moderado',
     description: DESCRIPTION,
-    isVerified: 'verificado',
+    status: 'verificado',
+    verifiedBy: '7d1c2f0a-1b2c-4d3e-8f9a-0b1c2d3e4f5a',
+    verifiedAt: '2026-10-15T13:00:00.000Z',
     createdAt: '2026-10-15T12:00:00.000Z',
     updatedAt: '2026-10-15T12:00:00.000Z',
   });

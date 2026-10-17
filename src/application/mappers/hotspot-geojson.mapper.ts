@@ -2,7 +2,7 @@ import type { Hotspot } from '@/domain/entities/hotspot.entity';
 import type {
   HotspotPointFeature,
   HotspotFeatureCollection,
-} from '@/presentation/types';
+} from '@/application/dto/hotspot-geojson';
 
 export function hotspotToGeoJSON(hotspots: Hotspot[]): HotspotFeatureCollection {
   const features: HotspotPointFeature[] = hotspots.map((hotspot) => ({

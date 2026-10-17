@@ -118,7 +118,7 @@ describe('isFirmsCsvHeader', () => {
   });
 });
 
-describe('NasaFirmsAdapter.getActive', () => {
+describe('NasaFirmsAdapter.fetchRecent', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -139,7 +139,7 @@ describe('NasaFirmsAdapter.getActive', () => {
     const fetchMock = stubFetch(csvResponse(`${HEADER}\n${row()}`), csvResponse(HEADER));
     const adapter = new NasaFirmsAdapter({ apiKey: API_KEY });
 
-    const hotspots = await adapter.getActive();
+    const hotspots = await adapter.fetchRecent();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(String(fetchMock.mock.calls[0][0])).toBe(buildFirmsUrl(API_KEY, 'VIIRS_NOAA20_NRT', 1));
@@ -160,7 +160,7 @@ describe('NasaFirmsAdapter.getActive', () => {
     stubFetch(csvResponse('Bad Request', 400, 'Bad Request'));
     const adapter = new NasaFirmsAdapter({ apiKey: API_KEY, sources: ['VIIRS_NOAA20_NRT'] });
 
-    const error = await adapter.getActive().then(
+    const error = await adapter.fetchRecent().then(
       () => null,
       (err: unknown) => err,
     );
@@ -176,14 +176,14 @@ describe('NasaFirmsAdapter.getActive', () => {
     stubFetch(csvResponse('Invalid MAP_KEY.'));
     const adapter = new NasaFirmsAdapter({ apiKey: API_KEY, sources: ['VIIRS_NOAA20_NRT'] });
 
-    await expect(adapter.getActive()).rejects.toThrow(/no CSV/);
+    await expect(adapter.fetchRecent()).rejects.toThrow(/no CSV/);
   });
 
   it('enmascara la key si aparece en el cuerpo no CSV', async () => {
     stubFetch(csvResponse(`Clave ${API_KEY} inválida`));
     const adapter = new NasaFirmsAdapter({ apiKey: API_KEY, sources: ['VIIRS_NOAA20_NRT'] });
 
-    const error = await adapter.getActive().catch((err: unknown) => err);
+    const error = await adapter.fetchRecent().catch((err: unknown) => err);
     expect((error as Error).message).not.toContain(API_KEY);
     expect((error as Error).message).toContain('***');
   });
@@ -198,7 +198,7 @@ describe('NasaFirmsAdapter.getActive', () => {
     );
     const adapter = new NasaFirmsAdapter({ apiKey: API_KEY, sources: ['VIIRS_NOAA20_NRT'] });
 
-    const hotspots = await adapter.getActive();
+    const hotspots = await adapter.fetchRecent();
 
     expect(hotspots.map((h) => h.confidence)).toEqual(['h', 'n']);
     expect(hotspots.map((h) => h.properties.latitude)).toEqual([-11, -12]);
@@ -208,21 +208,43 @@ describe('NasaFirmsAdapter.getActive', () => {
     stubFetch(csvResponse([HEADER, row(), 'basura,1,2'].join('\n')));
     const adapter = new NasaFirmsAdapter({ apiKey: API_KEY, sources: ['VIIRS_NOAA20_NRT'] });
 
-    expect(await adapter.getActive()).toHaveLength(1);
+    expect(await adapter.fetchRecent()).toHaveLength(1);
   });
 
-  it('aplica el filtro minFrp (inclusivo)', async () => {
+  it('no filtra por FRP: devuelve todos los focos válidos', async () => {
     stubFetch(
       csvResponse(
-        [HEADER, row({ frp: 5, lat: -10 }), row({ frp: 20, lat: -11 }), row({ frp: 50, lat: -12 })].join(
+        [HEADER, row({ frp: 0, lat: -10 }), row({ frp: 20, lat: -11 }), row({ frp: 50, lat: -12 })].join(
           '\n',
         ),
       ),
     );
     const adapter = new NasaFirmsAdapter({ apiKey: API_KEY, sources: ['VIIRS_NOAA20_NRT'] });
 
-    const hotspots = await adapter.getActive({ minFrp: 20 });
+    const hotspots = await adapter.fetchRecent();
 
-    expect(hotspots.map((h) => h.frp)).toEqual([20, 50]);
+    expect(hotspots.map((h) => h.frp)).toEqual([0, 20, 50]);
+  });
+
+  it('usa el dayRange configurado', async () => {
+    const fetchMock = stubFetch(csvResponse(HEADER));
+    const adapter = new NasaFirmsAdapter({
+      apiKey: API_KEY,
+      sources: ['VIIRS_NOAA21_NRT'],
+      dayRange: 2,
+    });
+
+    await adapter.fetchRecent();
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe(buildFirmsUrl(API_KEY, 'VIIRS_NOAA21_NRT', 2));
+  });
+
+  it('genera un id estable por satélite, fecha, hora y posición', async () => {
+    stubFetch(csvResponse(`${HEADER}\n${row()}`));
+    const adapter = new NasaFirmsAdapter({ apiKey: API_KEY, sources: ['VIIRS_NOAA20_NRT'] });
+
+    const [hotspot] = await adapter.fetchRecent();
+
+    expect(hotspot.id).toBe('NOAA-20-2026-10-15-0612--12.5000--75.1000');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { logisticsRequestSchema } from './logistics-request.schema';
+import { PERU_BOUNDS, logisticsRequestSchema } from './logistics-request.schema';
 
 const VALID_INPUT = {
   fullName: 'Rosa Huamán',
@@ -96,16 +96,33 @@ describe('logisticsRequestSchema', () => {
   });
 
   describe('latitude / longitude', () => {
-    it('acepta los extremos', () => {
-      expect(parse({ latitude: -90, longitude: -180 }).success).toBe(true);
-      expect(parse({ latitude: 90, longitude: 180 }).success).toBe(true);
+    it('acepta los bordes del bbox del Perú', () => {
+      expect(parse({ latitude: -18.5, longitude: -81.4 }).success).toBe(true);
+      expect(parse({ latitude: 0, longitude: -68.6 }).success).toBe(true);
     });
 
-    it('rechaza valores fuera de rango', () => {
-      expect(failedFields({ latitude: 90.01 })).toEqual(['latitude']);
-      expect(failedFields({ latitude: -90.01 })).toEqual(['latitude']);
-      expect(failedFields({ longitude: 180.01 })).toEqual(['longitude']);
-      expect(failedFields({ longitude: -180.01 })).toEqual(['longitude']);
+    it('rechaza puntos fuera del Perú', () => {
+      expect(failedFields({ latitude: -18.51 })).toEqual(['latitude']);
+      expect(failedFields({ latitude: 0.01 })).toEqual(['latitude']);
+      expect(failedFields({ longitude: -81.41 })).toEqual(['longitude']);
+      expect(failedFields({ longitude: -68.59 })).toEqual(['longitude']);
+    });
+
+    it('usa un mensaje en español para puntos fuera del Perú', () => {
+      const result = parse({ latitude: 40.4, longitude: -3.7 });
+      expect(result.success).toBe(false);
+      const messages = result.success ? [] : result.error.issues.map((i) => i.message);
+      expect(messages).toEqual([
+        'La ubicación debe estar dentro del Perú',
+        'La ubicación debe estar dentro del Perú',
+      ]);
+    });
+
+    it('expone el mismo bbox que el adaptador FIRMS', () => {
+      const { minLongitude, minLatitude, maxLongitude, maxLatitude } = PERU_BOUNDS;
+      expect([minLongitude, minLatitude, maxLongitude, maxLatitude].join(',')).toBe(
+        '-81.4,-18.5,-68.6,0',
+      );
     });
 
     it('exige números (sin GPS no hay envío)', () => {

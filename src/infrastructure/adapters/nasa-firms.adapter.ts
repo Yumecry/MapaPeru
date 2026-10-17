@@ -1,9 +1,6 @@
 import { Hotspot } from '@/domain/entities/hotspot.entity';
 import type { HotspotProperties } from '@/domain/types';
-import type {
-  HotspotQueryFilters,
-  IHotspotRepository,
-} from '@/domain/repositories/hotspot.repository';
+import type { IHotspotProvider } from '@/domain/providers/hotspot.provider';
 import { z } from 'zod';
 
 const FIRMS_CSV_ROW_SCHEMA = z.object({
@@ -135,7 +132,7 @@ function rowToHotspotProperties(
   };
 }
 
-export class NasaFirmsAdapter implements IHotspotRepository {
+export class NasaFirmsAdapter implements IHotspotProvider {
   private readonly config: NasaFirmsConfig;
 
   constructor(config: Partial<NasaFirmsConfig> = {}) {
@@ -150,7 +147,7 @@ export class NasaFirmsAdapter implements IHotspotRepository {
     };
   }
 
-  async getActive(filters?: HotspotQueryFilters): Promise<Hotspot[]> {
+  async fetchRecent(): Promise<Hotspot[]> {
     const allHotspots: Hotspot[] = [];
 
     for (const source of this.config.sources) {
@@ -163,22 +160,7 @@ export class NasaFirmsAdapter implements IHotspotRepository {
 
         if (parsed.data.confidence === 'l') continue;
 
-        const properties = rowToHotspotProperties(parsed.data, source);
-
-        if (filters?.minFrp !== undefined && properties.frp < filters.minFrp) {
-          continue;
-        }
-        if (filters?.sources && !filters.sources.includes(properties.source)) {
-          continue;
-        }
-        if (filters?.dateFrom && properties.acquisitionDate < filters.dateFrom) {
-          continue;
-        }
-        if (filters?.dateTo && properties.acquisitionDate > filters.dateTo) {
-          continue;
-        }
-
-        allHotspots.push(Hotspot.create(properties));
+        allHotspots.push(Hotspot.create(rowToHotspotProperties(parsed.data, source)));
       }
     }
 

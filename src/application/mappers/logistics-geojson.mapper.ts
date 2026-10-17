@@ -1,22 +1,9 @@
 import type { LogisticsRequest } from '@/domain/entities/logistics-request.entity';
-import {
-  toPublicLogisticsView,
-  type PublicLogisticsView,
-} from '@/application/mappers/public-logistics-view.mapper';
-
-export interface PublicLogisticsFeature {
-  type: 'Feature';
-  geometry: {
-    type: 'Point';
-    coordinates: [number, number];
-  };
-  properties: PublicLogisticsView;
-}
-
-export interface PublicLogisticsFeatureCollection {
-  type: 'FeatureCollection';
-  features: PublicLogisticsFeature[];
-}
+import type {
+  PublicLogisticsFeature,
+  PublicLogisticsFeatureCollection,
+} from '@/application/dto/logistics-geojson';
+import { toPublicLogisticsView } from '@/application/mappers/public-logistics-view.mapper';
 
 export function logisticsToGeoJSON(
   requests: LogisticsRequest[],

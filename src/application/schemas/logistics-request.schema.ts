@@ -9,6 +9,16 @@ export const supplyCategorySchema = z.enum([
   'veterinaria',
 ]);
 
+// Mismo bbox que el adaptador FIRMS (oeste, sur, este, norte).
+export const PERU_BOUNDS = {
+  minLatitude: -18.5,
+  maxLatitude: 0.0,
+  minLongitude: -81.4,
+  maxLongitude: -68.6,
+} as const;
+
+const OUTSIDE_PERU = 'La ubicación debe estar dentro del Perú';
+
 export const logisticsRequestSchema = z.object({
   fullName: z
     .string()
@@ -32,8 +42,14 @@ export const logisticsRequestSchema = z.object({
     .trim()
     .min(2, 'Distrito requerido')
     .max(50, 'Distrito demasiado largo'),
-  latitude: z.number('La ubicación GPS es obligatoria').min(-90).max(90),
-  longitude: z.number('La ubicación GPS es obligatoria').min(-180).max(180),
+  latitude: z
+    .number('La ubicación es obligatoria')
+    .min(PERU_BOUNDS.minLatitude, OUTSIDE_PERU)
+    .max(PERU_BOUNDS.maxLatitude, OUTSIDE_PERU),
+  longitude: z
+    .number('La ubicación es obligatoria')
+    .min(PERU_BOUNDS.minLongitude, OUTSIDE_PERU)
+    .max(PERU_BOUNDS.maxLongitude, OUTSIDE_PERU),
   categories: z
     .array(supplyCategorySchema)
     .min(1, 'Seleccione al menos una categoría de insumos')
