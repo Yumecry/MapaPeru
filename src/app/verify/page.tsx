@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { LifeBuoy, LogOut, MapPin } from 'lucide-react';
+import Link from 'next/link';
+import { LifeBuoy, LogOut, MapPin, Users } from 'lucide-react';
 import { getVerifier } from '@/infrastructure/auth/session';
 import { PostgisLogisticsRepository } from '@/infrastructure/database/postgis-logistics.repository';
 import { GetPendingRequestsUseCase } from '@/application/use-cases/get-pending-requests.use-case';
@@ -63,15 +64,26 @@ export default async function VerifyPage() {
             <p className="truncate text-xs text-slate-400">{verifier.email}</p>
           </div>
         </div>
-        <form action={signOut}>
-          <button
-            type="submit"
-            className="flex items-center gap-1 rounded bg-slate-700 px-3 py-2 text-sm transition-colors hover:bg-slate-600"
-          >
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Cerrar sesión</span>
-          </button>
-        </form>
+        <div className="flex items-center gap-2">
+          {verifier.role === 'admin' && (
+            <Link
+              href="/admin"
+              className="flex items-center gap-1 rounded bg-slate-700 px-3 py-2 text-sm transition-colors hover:bg-slate-600"
+            >
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Equipo</span>
+            </Link>
+          )}
+          <form action={signOut}>
+            <button
+              type="submit"
+              className="flex items-center gap-1 rounded bg-slate-700 px-3 py-2 text-sm transition-colors hover:bg-slate-600"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Cerrar sesión</span>
+            </button>
+          </form>
+        </div>
       </header>
 
       <section className="mx-auto max-w-3xl space-y-3 px-3 py-4 sm:px-4">

@@ -1,15 +1,11 @@
 import 'server-only';
 import { z } from 'zod';
 import { getSupabase } from '@/infrastructure/database/supabase.client';
+import type { Verifier } from '@/domain/entities/verifier.entity';
 import { createSupabaseServerClient } from './supabase-server';
 
-export type VerifierRole = 'admin' | 'verificador';
-
-export interface Verifier {
-  userId: string;
-  email: string;
-  role: VerifierRole;
-}
+export type { Verifier } from '@/domain/entities/verifier.entity';
+export type { VerifierRole } from '@/domain/types';
 
 export type AuthState =
   | { kind: 'anonymous' }
@@ -22,11 +18,13 @@ const VERIFIER_ROW_SCHEMA = z.object({
   role: z.enum(['admin', 'verificador']),
 });
 
+// Solo cuentas activas: una cuenta desactivada en /admin pierde el acceso de inmediato.
 export async function findVerifierByUserId(userId: string): Promise<Verifier | null> {
   const { data, error } = await getSupabase()
     .from('verifiers')
     .select('user_id, email, role')
     .eq('user_id', userId)
+    .is('disabled_at', null)
     .maybeSingle();
 
   if (error) {

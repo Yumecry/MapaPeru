@@ -29,3 +29,5 @@ export interface LogisticsContact {
   region: string;
   district: string;
 }
+
+export type VerifierRole = 'admin' | 'verificador';

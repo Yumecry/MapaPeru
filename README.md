@@ -64,6 +64,7 @@ de `domain/`, `application/` ni `infrastructure/` importa de `@/presentation`.
 | `/` | página | pública | Mapa de focos y solicitudes verificadas, filtros y formulario de solicitud. |
 | `/login` | página | pública | Inicio de sesión de verificadores (email + contraseña). Rate limit: 10 intentos / 15 min por IP. Si la cuenta no está en `verifiers`, se cierra la sesión. |
 | `/verify` | página | sesión + fila en `verifiers` | Cola de solicitudes pendientes (más antiguas primero, máx. 200) con nombre, teléfono, descripción y ubicación; botones aprobar/rechazar. Sin sesión → redirige a `/login`. |
+| `/admin` | página | sesión + `verifiers` con rol `admin` | Gestión del equipo: alta de cuentas (correo, contraseña temporal y rol), cambio de rol, desactivar/reactivar y cambio de contraseña. Un admin no puede quitarse el rol ni desactivarse, y la base de datos impide quedarse sin admins activos. Un `verificador` es redirigido a `/verify`. |
 | `/api/hotspots` | GET | pública | Focos persistidos en GeoJSON. Parámetros: `hours` (1–168, por defecto 48), `bbox=oeste,sur,este,norte`, `min_frp`. `Cache-Control: s-maxage=900, stale-while-revalidate`. |
 | `/api/logistics` | GET | pública | Solicitudes verificadas como vista pública (sin PII). Filtros `region`, `urgency` y `categories`. `s-maxage=300, stale-while-revalidate=60`. |
 | `/api/logistics` | POST | pública | Crea una solicitud `pendiente` (validada con Zod). Rate limit: 5 envíos / hora por IP → `429` + `Retry-After`. Devuelve el enlace de WhatsApp al equipo. |
@@ -108,6 +109,7 @@ Están en `supabase/migrations/` y se aplican **en orden** (SQL Editor de Supaba
 | `005_verification.sql` | Sustituye `is_verified` por `status` (`pendiente`/`verificado`/`rechazado`, migrando datos), añade `verified_by`, `verified_at`, `rejection_reason`, trigger de `updated_at` y la tabla `verifiers`. **Elimina la columna `is_verified`.** |
 | `006_schedule_firms_sync.sql` | `pg_cron` + `pg_net`: sync horario (minuto 15) leyendo URL y secreto de Vault, y retención diaria de 30 días (04:30 UTC). |
 | `007_logistics_geom.sql` | Columna generada `geom geography(Point,4326)` en `logistics_requests` + índice GiST. No cambia el código de escritura. |
+| `008_verifier_admin.sql` | Columna `disabled_at` en `verifiers` (baja sin borrar, para conservar `verified_by`) y trigger `ensure_active_admin` que impide dejar el sistema sin admins activos. |
 
 ## Despliegue (Vercel Hobby + Supabase)
 
@@ -134,17 +136,23 @@ Vercel Hobby solo permite cron diario, así que el sync horario lo programa Supa
 
    Para rotar: `select vault.update_secret(id, '<nuevo>')` con el `id` de `vault.secrets`,
    y actualizar `CRON_SECRET` en Vercel (y redesplegar).
-7. **Aplicar `006` y `007`.**
+7. **Aplicar `006`, `007` y `008`.** En un despliegue existente, aplica `008` **antes** de
+   desplegar el código que la usa: la comprobación de sesión filtra por `disabled_at` y,
+   sin esa columna, el login y `/verify` fallan.
 8. **Desactivar el sign-up público**: Authentication → Sign In / Providers → desmarcar
    "Allow new users to sign up".
-9. **Dar de alta verificadores**: Authentication → Users → "Add user" → "Create new user"
-   (email + contraseña, marcando "Auto Confirm User"), y después en el SQL Editor:
+9. **Dar de alta el primer administrador** (solo una vez): Authentication → Users →
+   "Add user" → "Create new user" (email + contraseña, marcando "Auto Confirm User"), y
+   después en el SQL Editor:
 
    ```sql
    INSERT INTO verifiers (user_id, email, role)
-   SELECT id, email, 'verificador' FROM auth.users WHERE email = 'persona@ejemplo.org';
-   -- role 'admin' para administradores. Baja: DELETE FROM verifiers WHERE email = '...';
+   SELECT id, email, 'admin' FROM auth.users WHERE email = 'persona@ejemplo.org';
    ```
+
+   El resto del equipo se gestiona desde `/admin` (enlace "Equipo" en `/verify`). Las bajas
+   se hacen desactivando la cuenta, no borrándola: así se conserva quién verificó cada
+   solicitud y la cuenta se puede reactivar.
 
 10. **Comprobar el cron**:
 

@@ -234,9 +234,17 @@ Fase 5                      --> en paralelo
 | **F · ubicación** | 5.2 | Pin manual en mini-mapa si falla el GPS; coordenadas restringidas al bbox de Perú en el schema |
 | **Cierre** | 5.1, 5.3 | DTOs GeoJSON en `application/dto/`; `geom` generada + GiST en `logistics_requests` (007); caché de logística a `s-maxage=300`; README de despliegue |
 
-**Orden de migraciones:** 001 → 002 → 003 → 004 → 005 → 006 → 007. La 005 elimina `is_verified`: desplegar código y migración a la vez. Antes de la 006, crear en Vault `firms_sync_url` y `cron_secret`.
+**Orden de migraciones:** 001 → 002 → 003 → 004 → 005 → 006 → 007 → 008. La 005 elimina `is_verified`: desplegar código y migración a la vez. Antes de la 006, crear en Vault `firms_sync_url` y `cron_secret`.
 
-**Pendiente (Tanda 3):** 5.4 (`IMapLayer`, contrato `sanitized-upload`), CSP, caché offline de tiles respetando la política de OSM, panel de administración de verificadores (hoy por SQL), avisos de `npm audit` en devDeps de ESLint.
+### Tanda 3 (en curso)
+
+| Item | Estado |
+|---|---|
+| **Panel de verificadores** | Hecho (2026-10-18). `/admin` solo para rol `admin`: alta (usuario de Auth confirmado + fila en `verifiers`, con compensación si falla), cambio de rol, desactivar/reactivar (`disabled_at`, 008) y cambio de contraseña. Un admin no puede degradarse ni desactivarse; el trigger `ensure_active_admin` garantiza al menos un admin activo. Las cuentas desactivadas pierden el acceso en la siguiente petición |
+| CSP | Pendiente |
+| Caché offline de tiles (respetando la política de OSM) | Pendiente |
+| 5.4 (`IMapLayer`, contrato `sanitized-upload`) | Pendiente |
+| Avisos de `npm audit` en devDeps de ESLint | Pendiente |
 
 ---
 
